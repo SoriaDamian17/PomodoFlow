@@ -1,0 +1,59 @@
+import { openDB, IDBPDatabase } from 'idb'
+
+export interface Todo {
+  id: string
+  text: string
+  completed: boolean
+  createdAt: number
+  synced: boolean
+}
+let dbInstance: IDBPDatabase | null = null
+export async function getDB() {
+  if (dbInstance) return dbInstance
+  dbInstance = await openDB('pomodoro-db', 1, {
+    upgrade(db) {
+      const todoStore = db.createObjectStore('todos', { keyPath: 'id' })
+      todoStore.createIndex('by-synced', 'synced')
+    },
+  })
+  return dbInstance
+}
+export async function addTodo(text: string): Promise<Todo> {
+  const db = await getDB()
+  const todo: Todo = {
+    id: crypto.randomUUID(),
+    text,
+    completed: false,
+    createdAt: Date.now(),
+    synced: false,
+  }
+  await db.add('todos', todo)
+  return todo
+}
+export async function getTodos(): Promise<Todo[]> {
+  const db = await getDB()
+  return db.getAll('todos')
+}
+export async function updateTodo(id: string, updates: Partial<Todo>): Promise<void> {
+  const db = await getDB()
+  const todo = await db.get('todos', id)
+  if (!todo) return
+  const updated = { ...todo, ...updates, synced: false }
+  await db.put('todos', updated)
+}
+export async function deleteTodo(id: string): Promise<void> {
+  const db = await getDB()
+  await db.delete('todos', id)
+}
+export async function getUnsyncedTodos(): Promise<Todo[]> {
+  const db = await getDB()
+  const allTodos = await db.getAll('todos')
+  return allTodos.filter((todo: Todo) => !todo.synced)
+}
+export async function markAsSynced(id: string): Promise<void> {
+  const db = await getDB()
+  const todo = await db.get('todos', id)
+  if (!todo) return
+  todo.synced = true
+  await db.put('todos', todo)
+}
