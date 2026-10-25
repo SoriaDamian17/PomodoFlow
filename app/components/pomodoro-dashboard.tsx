@@ -3,8 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/app/lib/cn";
 import { writeStoredDurations, type Durations } from "@/app/lib/settings";
+import { recordSession } from "@/app/lib/sessions";
 import type { Surface } from "@/app/lib/surfaces";
 import { MODE_META, minutesToMs, type TimerMode } from "@/app/lib/timer";
+import {
+  isRestorableTimerSnapshot,
+  readTimerSnapshot,
+} from "@/app/lib/timer-snapshot";
 import { useCountdown } from "@/app/lib/use-countdown";
 import { useDurations } from "@/app/lib/use-durations";
 import { BottomNav } from "@/app/components/bottom-nav";
@@ -60,25 +65,72 @@ export function PomodoroDashboard() {
   const [announcement, setAnnouncement] = useState("");
 
   const totalMs = minutesToMs(durations[mode]);
-  const { remainingMs, status, toggle, reset } = useCountdown(totalMs);
-  const isRunning = status === "running";
   const meta = MODE_META[mode];
+
+  /** Draft flow: focus is followed by a short break, a break is followed by focus. */
+  function nextModeAfter(completedMode: TimerMode): TimerMode {
+    return completedMode === "focus" ? "short" : "focus";
+  }
+
+  // F005: the countdown emits exactly one completion, so exactly one session
+  // record and one announcement are produced per finished run — resets and
+  // abandoned timers never reach this handler.
+  function handleComplete() {
+    const completedMode = mode;
+    const nextMode = nextModeAfter(completedMode);
+    const completedAt = Date.now();
+    const timeLabel = new Date(completedAt).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+    // The time keeps consecutive identical announcements distinguishable so
+    // the live region re-announces every completion.
+    setAnnouncement(
+      `${MODE_META[completedMode].label} session complete at ${timeLabel}. Next up: ${MODE_META[nextMode].label}.`,
+    );
+
+    void recordSession({
+      mode: completedMode,
+      durationMs: minutesToMs(durations[completedMode]),
+      completedAt,
+    });
+  }
+
+  const { remainingMs, status, toggle, reset, restore } = useCountdown(totalMs, {
+    mode,
+    onComplete: handleComplete,
+  });
+  const isRunning = status === "running";
   const activeSurface: Surface = surface ?? "timer";
 
-  const previousStatusRef = useRef(status);
+  // F027: restore an in-progress run from its stored target time on load.
+  const restoredRef = useRef(false);
   useEffect(() => {
-    if (status === "completed" && previousStatusRef.current !== "completed") {
-      setAnnouncement(`${meta.label} session complete.`);
-    }
-    previousStatusRef.current = status;
-  }, [status, meta.label]);
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+
+    const snapshot = readTimerSnapshot();
+    if (!snapshot) return;
+    if (snapshot.durationMs !== minutesToMs(durations[snapshot.mode])) return;
+    if (!isRestorableTimerSnapshot(snapshot)) return;
+
+    // Hydration-gated restore: localStorage is only readable after mount, so
+    // the first client render must match the server output before we can swap
+    // in the stored mode and countdown. Runs exactly once (restoredRef).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (snapshot.mode !== mode) setMode(snapshot.mode);
+    restore(snapshot);
+    setAnnouncement("In-progress session restored.");
+  }, [mode, durations, restore]);
 
   function handleModeChange(nextMode: TimerMode) {
     if (nextMode === mode) return;
 
     // Documented rule: switching modes stops the current session instead of
     // silently carrying its length into the new mode.
-    if (status === "running" || status === "paused") reset();
+    if (status !== "idle") reset();
 
     setMode(nextMode);
     setAnnouncement(
@@ -175,7 +227,20 @@ export function PomodoroDashboard() {
               {startLabel}
             </button>
 
-            <div className="flex min-h-9 items-center [@media(max-height:620px)]:min-h-0">
+            <div className="flex min-h-9 flex-col items-center gap-1 [@media(max-height:620px)]:min-h-0">
+              {status === "completed" ? (
+                <p className="flex max-w-[22rem] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 px-1 text-center text-sm font-medium text-foreground">
+                  <span
+                    aria-hidden="true"
+                    className="size-1.5 rounded-full bg-accent-strong"
+                  />
+                  {meta.label} complete
+                  <span className="text-muted">
+                    Next up: {MODE_META[nextModeAfter(mode)].label}
+                  </span>
+                </p>
+              ) : null}
+
               {status !== "idle" ? (
                 <button
                   type="button"
