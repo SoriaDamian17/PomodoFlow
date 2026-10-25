@@ -248,7 +248,7 @@
         "Attempt to create a task with an empty or whitespace-only title and verify validation prevents it with an inline message.",
         "Verify the sheet's form is keyboard submittable and labelled (F013)."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F007",
@@ -268,7 +268,7 @@
         "Verify the task no longer appears in the list after deletion.",
         "Verify cancelling an edit leaves the original task unchanged."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F008",
@@ -288,7 +288,7 @@
         "Clear filters and verify the full task list returns.",
         "Verify the empty-filtered state explains how to clear filters."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F009",
@@ -310,7 +310,7 @@
         "Verify the completed session references the selected task.",
         "Verify changing the selected task later does not rewrite previously completed sessions."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F010",
@@ -567,7 +567,7 @@
         "Verify a running timer keeps counting while a sheet is open and remains visible or clearly indicated.",
         "Verify closing a sheet does not discard saved changes or reset the timer."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F023",

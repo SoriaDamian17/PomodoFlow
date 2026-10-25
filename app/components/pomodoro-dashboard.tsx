@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/app/lib/cn";
 import { writeStoredDurations, type Durations } from "@/app/lib/settings";
-import { recordSession } from "@/app/lib/sessions";
+import { buildSessionInput, recordSession } from "@/app/lib/sessions";
 import type { Surface } from "@/app/lib/surfaces";
 import { MODE_META, minutesToMs, type TimerMode } from "@/app/lib/timer";
 import {
   isRestorableTimerSnapshot,
   readTimerSnapshot,
 } from "@/app/lib/timer-snapshot";
+import { useActiveTaskId, useTasks } from "@/app/lib/use-tasks";
 import { useCountdown } from "@/app/lib/use-countdown";
 import { useDurations } from "@/app/lib/use-durations";
 import { BottomNav } from "@/app/components/bottom-nav";
@@ -17,11 +18,14 @@ import { ModeTabs } from "@/app/components/mode-tabs";
 import { NavRail } from "@/app/components/nav-rail";
 import { SettingsSheet } from "@/app/components/settings-sheet";
 import { Sheet } from "@/app/components/sheet";
+import { TasksSheet } from "@/app/components/tasks-sheet";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { TimerRing } from "@/app/components/timer-ring";
+import { TimerStatusPill } from "@/app/components/timer-status";
 import { IconButton } from "@/app/components/icon-button";
 import {
   ChecklistIcon,
+  CloseIcon,
   GearIcon,
   MusicIcon,
   PauseIcon,
@@ -32,12 +36,6 @@ import {
 import type { ComponentType, SVGProps } from "react";
 
 const COMING_SOON: Partial<Record<Surface, { title: string; description: string; message: string }>> = {
-  tasks: {
-    title: "Tasks",
-    description: "Plan what this focus session is for.",
-    message:
-      "Task capture, priorities and filters land in the next update. For now, start a session with your intention in mind.",
-  },
   music: {
     title: "Music",
     description: "Ambient sound for deep work.",
@@ -63,6 +61,10 @@ export function PomodoroDashboard() {
   const durations = useDurations();
   const [surface, setSurface] = useState<Surface | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const { tasks, ready, storageAvailable, createTask, updateTask, deleteTask } =
+    useTasks();
+  const [activeTaskId, setActiveTaskId] = useActiveTaskId();
+  const activeTask = tasks.find((task) => task.id === activeTaskId) ?? null;
 
   const totalMs = minutesToMs(durations[mode]);
   const meta = MODE_META[mode];
@@ -91,11 +93,16 @@ export function PomodoroDashboard() {
       `${MODE_META[completedMode].label} session complete at ${timeLabel}. Next up: ${MODE_META[nextMode].label}.`,
     );
 
-    void recordSession({
-      mode: completedMode,
-      durationMs: minutesToMs(durations[completedMode]),
-      completedAt,
-    });
+    // F009: the completion snapshots the selected task's id *and* title, so a
+    // later edit/delete never rewrites an already completed session.
+    void recordSession(
+      buildSessionInput({
+        mode: completedMode,
+        durationMs: minutesToMs(durations[completedMode]),
+        completedAt,
+        activeTask,
+      }),
+    );
   }
 
   const { remainingMs, status, toggle, reset, restore } = useCountdown(totalMs, {
@@ -149,6 +156,31 @@ export function PomodoroDashboard() {
   function handleSaveDurations(nextDurations: Durations) {
     writeStoredDurations(nextDurations);
     setAnnouncement("Timer settings saved.");
+  }
+
+  /** F009: selecting a task announces it and persists the choice. */
+  function handleSelectActiveTask(id: string | null) {
+    setActiveTaskId(id);
+
+    const task = id ? tasks.find((item) => item.id === id) ?? null : null;
+    setAnnouncement(
+      task ? `Focus task set to ${task.title}.` : "Focus task cleared.",
+    );
+  }
+
+  /**
+   * Deleting the active task clears the selection, but never touches sessions
+   * that already completed against it (they carry their own title snapshot).
+   */
+  async function handleDeleteTask(id: string): Promise<boolean> {
+    const deleted = await deleteTask(id);
+
+    if (deleted && activeTaskId === id) {
+      setActiveTaskId(null);
+      setAnnouncement("The focus task was deleted.");
+    }
+
+    return deleted;
   }
 
   const startLabel = isRunning ? "Pause" : status === "paused" ? "Resume" : "Start";
@@ -212,6 +244,29 @@ export function PomodoroDashboard() {
             sessionLabel={meta.sessionLabel}
             running={isRunning}
           />
+
+          {activeTask ? (
+            <div className="flex max-w-[22rem] items-center gap-2 rounded-full border border-accent-text/45 bg-accent/10 py-1.5 pr-2 pl-3 text-xs">
+              <ChecklistIcon
+                aria-hidden="true"
+                className="size-3.5 shrink-0 text-accent-text"
+              />
+              <span className="min-w-0 truncate">
+                <span className="text-muted">Focus task: </span>
+                <span className="font-medium text-foreground">
+                  {activeTask.title}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSelectActiveTask(null)}
+                aria-label={`Clear focus task ${activeTask.title}`}
+                className="grid size-6 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-foreground/10 hover:text-foreground"
+              >
+                <CloseIcon className="size-3.5" />
+              </button>
+            </div>
+          ) : null}
 
           <div className="flex flex-col items-center gap-1">
             <button
@@ -283,16 +338,34 @@ export function PomodoroDashboard() {
         durations={durations}
         onClose={closeSurface}
         onSave={handleSaveDurations}
+        headerExtra={
+          <TimerStatusPill
+            mode={mode}
+            status={status}
+            remainingMs={remainingMs}
+          />
+        }
       />
 
-      <Sheet
+      <TasksSheet
         open={surface === "tasks"}
         onClose={closeSurface}
-        title="Tasks"
-        description="Plan what this focus session is for."
-      >
-        <ComingSoon message={COMING_SOON.tasks?.message ?? ""} />
-      </Sheet>
+        tasks={tasks}
+        ready={ready}
+        storageAvailable={storageAvailable}
+        activeTaskId={activeTaskId}
+        onSelectActiveTask={handleSelectActiveTask}
+        onCreate={createTask}
+        onUpdate={updateTask}
+        onDelete={handleDeleteTask}
+        headerExtra={
+          <TimerStatusPill
+            mode={mode}
+            status={status}
+            remainingMs={remainingMs}
+          />
+        }
+      />
 
       <Sheet
         open={surface === "music"}
