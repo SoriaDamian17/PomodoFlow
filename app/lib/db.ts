@@ -10,10 +10,16 @@ export interface Todo {
 let dbInstance: IDBPDatabase | null = null
 export async function getDB() {
   if (dbInstance) return dbInstance
-  dbInstance = await openDB('pomodoro-db', 1, {
-    upgrade(db) {
-      const todoStore = db.createObjectStore('todos', { keyPath: 'id' })
-      todoStore.createIndex('by-synced', 'synced')
+  dbInstance = await openDB('pomodoro-db', 2, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        const todoStore = db.createObjectStore('todos', { keyPath: 'id' })
+        todoStore.createIndex('by-synced', 'synced')
+      }
+      if (oldVersion < 2) {
+        const sessionStore = db.createObjectStore('sessions', { keyPath: 'id' })
+        sessionStore.createIndex('by-completedAt', 'completedAt')
+      }
     },
   })
   return dbInstance
