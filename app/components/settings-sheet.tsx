@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { cn } from "@/app/lib/cn";
 import {
   DEFAULT_DURATIONS,
@@ -16,6 +16,8 @@ interface SettingsSheetProps {
   durations: Durations;
   onClose: () => void;
   onSave: (durations: Durations) => void;
+  /** Optional context rendered in the sheet header (F022 timer indicator). */
+  headerExtra?: ReactNode;
 }
 
 type DurationFormValues = Record<TimerMode, string>;
@@ -34,6 +36,7 @@ export function SettingsSheet({
   durations,
   onClose,
   onSave,
+  headerExtra,
 }: SettingsSheetProps) {
   return (
     <Sheet
@@ -41,6 +44,7 @@ export function SettingsSheet({
       onClose={onClose}
       title="Timer settings"
       description="Tune how long each session lasts. Durations apply in minutes."
+      headerExtra={headerExtra}
     >
       {/* Mounting the form only while open gives every visit fresh values
           without a setState-in-effect reset. */}
