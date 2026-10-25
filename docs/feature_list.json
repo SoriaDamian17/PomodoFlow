@@ -331,7 +331,7 @@
         "Verify history persists across reloads.",
         "Verify history renders correctly for an empty store."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F011",
@@ -351,7 +351,7 @@
         "Verify the empty state explains what to do, not just `0`.",
         "Verify totals use the browser's local timezone day boundaries."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F012",
@@ -628,7 +628,7 @@
         "Verify the empty state explains what a streak is and how to start one.",
         "Verify the streak is recomputed from session history, not a separately mutable counter."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F026",
@@ -648,7 +648,7 @@
         "Verify empty and single-session states render meaningful copy.",
         "Verify the summary is readable with a screen reader (table or list semantics, not color-only chart)."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F027",

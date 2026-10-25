@@ -1,6 +1,6 @@
 import { getDB } from "@/app/lib/db";
 import type { Task } from "@/app/lib/tasks";
-import type { TimerMode } from "@/app/lib/timer";
+import { isTimerMode, type TimerMode } from "@/app/lib/timer";
 
 /** A single completed run, written once by the completion handler (F005 / F010). */
 export interface SessionRecord {
@@ -19,6 +19,53 @@ export interface SessionRecord {
 }
 
 export type SessionInput = Omit<SessionRecord, "id">;
+
+/** Same-tab notification so history/statistics refresh without a reload. */
+export const SESSIONS_UPDATED_EVENT = "pomodoroflow:sessions-updated";
+
+/**
+ * Defensive parser for stored rows (F012): a malformed session is dropped
+ * instead of crashing the history, exactly like tasks and settings.
+ */
+export function parseStoredSession(value: unknown): SessionRecord | null {
+  if (typeof value !== "object" || value === null) return null;
+
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.id !== "string" || candidate.id.length === 0) return null;
+  if (!isTimerMode(candidate.mode)) return null;
+  if (
+    typeof candidate.durationMs !== "number" ||
+    !Number.isFinite(candidate.durationMs) ||
+    candidate.durationMs <= 0
+  ) {
+    return null;
+  }
+  if (
+    typeof candidate.completedAt !== "number" ||
+    !Number.isFinite(candidate.completedAt)
+  ) {
+    return null;
+  }
+
+  const session: SessionRecord = {
+    id: candidate.id,
+    mode: candidate.mode,
+    durationMs: candidate.durationMs,
+    completedAt: candidate.completedAt,
+  };
+
+  if (typeof candidate.taskId === "string" && candidate.taskId.length > 0) {
+    session.taskId = candidate.taskId;
+  }
+  if (
+    typeof candidate.taskTitle === "string" &&
+    candidate.taskTitle.length > 0
+  ) {
+    session.taskTitle = candidate.taskTitle;
+  }
+
+  return session;
+}
 
 export interface SessionCompletionContext {
   mode: TimerMode;
@@ -64,18 +111,31 @@ export async function recordSession(input: SessionInput): Promise<SessionRecord 
     const db = await getDB();
     const session: SessionRecord = { id: crypto.randomUUID(), ...input };
     await db.add("sessions", session);
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(SESSIONS_UPDATED_EVENT));
+    }
+
     return session;
   } catch {
     return null;
   }
 }
 
-/** All recorded sessions, oldest first. Returns an empty list when storage is unavailable. */
+/**
+ * All recorded sessions, oldest first.
+ *
+ * Rows are validated on read, so one corrupt record cannot break history or
+ * statistics. Returns an empty list when storage is unavailable (F012).
+ */
 export async function getSessions(): Promise<SessionRecord[]> {
   try {
     const db = await getDB();
-    const sessions = await db.getAll("sessions");
-    return sessions.sort((a, b) => a.completedAt - b.completedAt);
+    const records: unknown[] = await db.getAll("sessions");
+    return records
+      .map(parseStoredSession)
+      .filter((session): session is SessionRecord => session !== null)
+      .sort((a, b) => a.completedAt - b.completedAt);
   } catch {
     return [];
   }

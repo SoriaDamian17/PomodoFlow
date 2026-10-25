@@ -2,6 +2,10 @@ export const TIMER_MODES = ["focus", "short", "long"] as const;
 
 export type TimerMode = (typeof TIMER_MODES)[number];
 
+export function isTimerMode(value: unknown): value is TimerMode {
+  return TIMER_MODES.includes(value as TimerMode);
+}
+
 export interface ModeMeta {
   id: TimerMode;
   /** Label shown in the mode tabs, matching the draft. */
