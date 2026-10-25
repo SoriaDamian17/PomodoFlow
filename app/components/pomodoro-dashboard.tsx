@@ -13,17 +13,23 @@ import {
 import { useActiveTaskId, useTasks } from "@/app/lib/use-tasks";
 import { useCountdown } from "@/app/lib/use-countdown";
 import { useDurations } from "@/app/lib/use-durations";
+import { useNow } from "@/app/lib/use-now";
+import { useSessions } from "@/app/lib/use-sessions";
+import { formatFocusDuration, getFocusSummary } from "@/app/lib/session-stats";
 import { BottomNav } from "@/app/components/bottom-nav";
+import { InsightsSheet } from "@/app/components/insights-sheet";
 import { ModeTabs } from "@/app/components/mode-tabs";
 import { NavRail } from "@/app/components/nav-rail";
 import { SettingsSheet } from "@/app/components/settings-sheet";
 import { Sheet } from "@/app/components/sheet";
+import { StreakSheet } from "@/app/components/streak-sheet";
 import { TasksSheet } from "@/app/components/tasks-sheet";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { TimerRing } from "@/app/components/timer-ring";
 import { TimerStatusPill } from "@/app/components/timer-status";
 import { IconButton } from "@/app/components/icon-button";
 import {
+  AlertIcon,
   ChecklistIcon,
   CloseIcon,
   GearIcon,
@@ -42,18 +48,6 @@ const COMING_SOON: Partial<Record<Surface, { title: string; description: string;
     message:
       "Soundscapes are being prepared. The player will live in this panel and keep playing across sessions.",
   },
-  streak: {
-    title: "Streak",
-    description: "Keep the flame alive.",
-    message:
-      "Streaks arrive once completed focus sessions are stored. Finish a session to light the flame.",
-  },
-  insights: {
-    title: "Focus insights",
-    description: "How your week is shaping up.",
-    message:
-      "Daily totals and weekly focus minutes appear here once sessions are being recorded.",
-  },
 };
 
 export function PomodoroDashboard() {
@@ -63,8 +57,21 @@ export function PomodoroDashboard() {
   const [announcement, setAnnouncement] = useState("");
   const { tasks, ready, storageAvailable, createTask, updateTask, deleteTask } =
     useTasks();
+  const {
+    sessions,
+    ready: sessionsReady,
+    storageAvailable: sessionsStorageAvailable,
+  } = useSessions();
   const [activeTaskId, setActiveTaskId] = useActiveTaskId();
   const activeTask = tasks.find((task) => task.id === activeTaskId) ?? null;
+
+  /** Any unavailable storage surface downgrades persistence for the whole app. */
+  const storageUnavailable = !storageAvailable || !sessionsStorageAvailable;
+
+  // F011: daily statistics on the dashboard itself, recomputed from history.
+  const now = useNow();
+  const showTodayStats = sessionsReady && now > 0;
+  const todaySummary = getFocusSummary(sessions, now, "today");
 
   const totalMs = minutesToMs(durations[mode]);
   const meta = MODE_META[mode];
@@ -225,6 +232,22 @@ export function PomodoroDashboard() {
         </div>
       </header>
 
+      {storageUnavailable ? (
+        <p
+          role="alert"
+          className="mt-4 flex items-start gap-2 rounded-2xl border border-accent-text/40 bg-accent/10 px-3.5 py-3 text-xs leading-relaxed text-foreground"
+        >
+          <AlertIcon
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-accent-text"
+          />
+          <span>
+            Browser storage is unavailable, so tasks, streaks and session history
+            cannot be saved. PomodoroFlow keeps working for this visit only.
+          </span>
+        </p>
+      ) : null}
+
       <main className="relative flex flex-1 items-center justify-center py-8 [@media(max-height:620px)]:py-2">
         <NavRail
           active={activeSurface}
@@ -308,6 +331,39 @@ export function PomodoroDashboard() {
               ) : null}
             </div>
           </div>
+
+          {/* F011: dashboard-level daily totals, derived from session history. */}
+          {showTodayStats ? (
+            <section
+              aria-label="Today's focus statistics"
+              className="max-w-[22rem] rounded-2xl border border-glass-border bg-foreground/5 px-4 py-2 text-center"
+            >
+              {todaySummary.sessions === 0 ? (
+                <p className="text-xs leading-relaxed text-muted">
+                  No focus sessions yet today. Finish one to start your daily
+                  totals.
+                </p>
+              ) : (
+                <dl className="flex items-center justify-center gap-x-3 gap-y-1 text-xs">
+                  <div className="flex items-baseline gap-1.5">
+                    <dt className="text-muted">Sessions today</dt>
+                    <dd className="font-semibold tabular-nums text-foreground">
+                      {todaySummary.sessions}
+                    </dd>
+                  </div>
+                  <span aria-hidden="true" className="text-foreground/25">
+                    ·
+                  </span>
+                  <div className="flex items-baseline gap-1.5">
+                    <dt className="text-muted">Focus time</dt>
+                    <dd className="font-semibold tabular-nums text-foreground">
+                      {formatFocusDuration(todaySummary.totalMs)}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+            </section>
+          ) : null}
         </div>
       </main>
 
@@ -376,23 +432,35 @@ export function PomodoroDashboard() {
         <ComingSoon message={COMING_SOON.music?.message ?? ""} />
       </Sheet>
 
-      <Sheet
-        open={surface === "streak"}
-        onClose={closeSurface}
-        title="Streak"
-        description="Keep the flame alive."
-      >
-        <ComingSoon message={COMING_SOON.streak?.message ?? ""} />
-      </Sheet>
-
-      <Sheet
+      <InsightsSheet
         open={surface === "insights"}
         onClose={closeSurface}
-        title="Focus insights"
-        description="How your week is shaping up."
-      >
-        <ComingSoon message={COMING_SOON.insights?.message ?? ""} />
-      </Sheet>
+        sessions={sessions}
+        ready={sessionsReady}
+        storageAvailable={sessionsStorageAvailable}
+        headerExtra={
+          <TimerStatusPill
+            mode={mode}
+            status={status}
+            remainingMs={remainingMs}
+          />
+        }
+      />
+
+      <StreakSheet
+        open={surface === "streak"}
+        onClose={closeSurface}
+        sessions={sessions}
+        ready={sessionsReady}
+        storageAvailable={sessionsStorageAvailable}
+        headerExtra={
+          <TimerStatusPill
+            mode={mode}
+            status={status}
+            remainingMs={remainingMs}
+          />
+        }
+      />
 
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}

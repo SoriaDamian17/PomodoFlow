@@ -32,6 +32,21 @@ export async function getDB() {
   })
   return dbInstance
 }
+
+/**
+ * Probe used by the visible storage fallback (F012): private mode, quota or a
+ * disabled IndexedDB make every read/write a best-effort no-op, so the UI needs
+ * a way to tell "empty" apart from "unavailable".
+ */
+export async function isDatabaseAvailable(): Promise<boolean> {
+  try {
+    await getDB()
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function addTodo(text: string): Promise<Todo> {
   const db = await getDB()
   const todo: Todo = {

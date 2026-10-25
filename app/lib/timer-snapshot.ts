@@ -1,5 +1,5 @@
 import type { CountdownSnapshot } from "@/app/lib/countdown-core";
-import { TIMER_MODES, type TimerMode } from "@/app/lib/timer";
+import { isTimerMode, type TimerMode } from "@/app/lib/timer";
 
 /** A restorable countdown plus the mode it was started in (F027). */
 export interface TimerSnapshot extends CountdownSnapshot {
@@ -8,10 +8,6 @@ export interface TimerSnapshot extends CountdownSnapshot {
 }
 
 export const TIMER_SNAPSHOT_KEY = "pomodoroflow:timer";
-
-function isTimerMode(value: unknown): value is TimerMode {
-  return typeof value === "string" && (TIMER_MODES as readonly string[]).includes(value);
-}
 
 function parseSnapshot(raw: string | null): TimerSnapshot | null {
   if (!raw) return null;

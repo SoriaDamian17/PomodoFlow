@@ -129,3 +129,13 @@ export function CloseIcon(props: IconProps) {
     </Icon>
   );
 }
+
+export function AlertIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 4.2 2.8 19.2h18.4L12 4.2Z" />
+      <path d="M12 9.5v4.2" />
+      <path d="M12 16.8h.01" />
+    </Icon>
+  );
+}
