@@ -373,6 +373,45 @@
   [data-theme="light"] .theme-icon-moon {
     display: block;
   }
+
+  /* Three-bar playback indicator used by the Music sheet (F023). */
+  .equalizer {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 0.875rem;
+  }
+
+  .equalizer > span {
+    width: 3px;
+    height: 40%;
+    border-radius: 9999px;
+    background-color: var(--accent-strong);
+  }
+}
+
+@keyframes equalize {
+  0%,
+  100% {
+    height: 30%;
+  }
+  50% {
+    height: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .equalizer > span {
+    animation: equalize 1.1s ease-in-out infinite;
+  }
+
+  .equalizer > span:nth-child(2) {
+    animation-delay: 160ms;
+  }
+
+  .equalizer > span:nth-child(3) {
+    animation-delay: 320ms;
+  }
 }
 
 @keyframes scene-breathe {

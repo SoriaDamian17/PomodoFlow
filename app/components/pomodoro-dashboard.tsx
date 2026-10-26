@@ -11,6 +11,7 @@ import {
   readTimerSnapshot,
 } from "@/app/lib/timer-snapshot";
 import { useActiveTaskId, useTasks } from "@/app/lib/use-tasks";
+import { useAudioPlayer } from "@/app/lib/use-audio-player";
 import { useCountdown } from "@/app/lib/use-countdown";
 import { useDurations } from "@/app/lib/use-durations";
 import { useNow } from "@/app/lib/use-now";
@@ -19,9 +20,9 @@ import { formatFocusDuration, getFocusSummary } from "@/app/lib/session-stats";
 import { BottomNav } from "@/app/components/bottom-nav";
 import { InsightsSheet } from "@/app/components/insights-sheet";
 import { ModeTabs } from "@/app/components/mode-tabs";
+import { MusicSheet } from "@/app/components/music-sheet";
 import { NavRail } from "@/app/components/nav-rail";
 import { SettingsSheet } from "@/app/components/settings-sheet";
-import { Sheet } from "@/app/components/sheet";
 import { StreakSheet } from "@/app/components/streak-sheet";
 import { TasksSheet } from "@/app/components/tasks-sheet";
 import { ThemeToggle } from "@/app/components/theme-toggle";
@@ -41,20 +42,12 @@ import {
 } from "@/app/components/icons";
 import type { ComponentType, SVGProps } from "react";
 
-const COMING_SOON: Partial<Record<Surface, { title: string; description: string; message: string }>> = {
-  music: {
-    title: "Music",
-    description: "Ambient sound for deep work.",
-    message:
-      "Soundscapes are being prepared. The player will live in this panel and keep playing across sessions.",
-  },
-};
-
 export function PomodoroDashboard() {
   const [mode, setMode] = useState<TimerMode>("focus");
   const durations = useDurations();
   const [surface, setSurface] = useState<Surface | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const audio = useAudioPlayer();
   const { tasks, ready, storageAvailable, createTask, updateTask, deleteTask } =
     useTasks();
   const {
@@ -372,6 +365,7 @@ export function PomodoroDashboard() {
           label="Music"
           icon={MusicIcon}
           onClick={() => openSurface("music")}
+          playing={audio.playing}
         />
         <div className="pointer-events-auto flex items-center gap-2.5">
           <PillButton
@@ -423,14 +417,18 @@ export function PomodoroDashboard() {
         }
       />
 
-      <Sheet
+      <MusicSheet
         open={surface === "music"}
         onClose={closeSurface}
-        title="Music"
-        description="Ambient sound for deep work."
-      >
-        <ComingSoon message={COMING_SOON.music?.message ?? ""} />
-      </Sheet>
+        player={audio}
+        headerExtra={
+          <TimerStatusPill
+            mode={mode}
+            status={status}
+            remainingMs={remainingMs}
+          />
+        }
+      />
 
       <InsightsSheet
         open={surface === "insights"}
@@ -473,9 +471,11 @@ interface PillButtonProps {
   label: string;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   onClick: () => void;
+  /** Highlights the icon and adds a playback indicator (F023). */
+  playing?: boolean;
 }
 
-function PillButton({ label, icon: Icon, onClick }: PillButtonProps) {
+function PillButton({ label, icon: Icon, onClick, playing }: PillButtonProps) {
   return (
     <button
       type="button"
@@ -485,23 +485,17 @@ function PillButton({ label, icon: Icon, onClick }: PillButtonProps) {
         "hover:bg-foreground/10 hover:text-foreground",
       )}
     >
-      <Icon className="size-[18px] text-muted" />
+      <Icon
+        className={cn("size-[18px]", playing ? "text-accent-text" : "text-muted")}
+      />
       {label}
+      {playing ? (
+        <span aria-hidden="true" className="equalizer">
+          <span />
+          <span />
+          <span />
+        </span>
+      ) : null}
     </button>
-  );
-}
-
-function ComingSoon({ message }: { message: string }) {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-glass-border px-6 py-10 text-center">
-      <span
-        aria-hidden="true"
-        className="grid size-11 place-items-center rounded-full bg-accent/15 text-accent-text"
-      >
-        <TimerIcon className="size-5" />
-      </span>
-      <p className="text-sm font-medium text-foreground">Coming soon</p>
-      <p className="max-w-xs text-sm leading-relaxed text-muted">{message}</p>
-    </div>
   );
 }

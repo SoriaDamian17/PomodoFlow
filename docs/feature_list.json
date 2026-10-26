@@ -370,7 +370,7 @@
         "Simulate IndexedDB being unavailable (private mode/quota) and verify a visible fallback state.",
         "Verify an in-progress timer is restored from its stored target time (F027)."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F013",
@@ -589,7 +589,7 @@
         "Verify tracks play offline after the first load and show a clear error when unavailable.",
         "Verify the player is keyboard operable and exposes state with `aria-pressed`."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F024",
@@ -744,7 +744,7 @@
         "Verify the installed app launches standalone and offline after one visit.",
         "Verify the service worker is only active in production (`npm run build && npm start`)."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F032",
@@ -784,7 +784,7 @@
         "Verify a new service worker version prompts a reload instead of refreshing aggressively.",
         "Verify stale cached HTML never serves a version that breaks the IndexedDB schema."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F034",

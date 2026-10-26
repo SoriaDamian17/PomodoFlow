@@ -3,36 +3,81 @@
 Features are left at `passes: false` in `docs/feature_list.json` when at least one
 listed step cannot be verified yet. This file records why, outside the backlog.
 
-## F012 — Tasks, timer settings, streaks and session history persist
+## P4 (F023, F031, F033) and F012 have no remaining blockers
 
-**Status:** blocked on the music player (F023, phase P4).
+P4 shipped with a production-build verification run in headless Chrome against
+`npm run build && npm start` (43/43 checks) plus a separate development run for
+the service-worker split. Evidence is summarized below; `docs/audio.md`
+documents the generated audio assets.
 
-**Unverifiable steps**
+### Verification notes (automated substitutes)
 
-- Step 1 — "Create a task, change timer settings, **select a track (F023)** and
-  complete a focus session."
-- Step 2 — "...verify tasks, settings, **selected track** and session history are
-  restored."
+Two F031 steps cannot be executed literally by a headless test, so they were
+verified with the closest authoritative equivalent:
 
-There is no track selector or audio player in the app yet: the Music surface is
-still the `COMING_SOON` placeholder in `app/components/pomodoro-dashboard.tsx`,
-and F023 depends on F033 (bundled audio assets). Adding a fake or hard-coded
-track list just to satisfy the step would not be a real implementation.
+- **F031 step 4 — "Lighthouse installability checks pass".** Current Lighthouse
+  releases removed the PWA category, so installability was read from Chrome
+  itself: CDP `Page.getAppManifest` returned no errors and
+  `Page.getInstallabilityErrors` returned an empty list on the production build.
+  Those are the same checks Lighthouse used to aggregate.
+- **F031 step 5 — "the installed app launches standalone and offline after one
+  visit".** Installing a PWA is a browser UI flow that headless Chrome cannot
+  drive. Verified instead: `display: "standalone"`, `start_url`/`scope` `/`,
+  manifest icons resolving to 200 PNGs, installability errors empty, and a
+  controlled reload with the network offline rendering the full timer shell from
+  the precached HTML/chunks. A manual "Install app" check on a desktop and an
+  Android device is still worth doing before release.
 
-**Verified so far (headless Chrome against `npm start`, 16/16 checks)**
+Everything else was executed directly:
 
-- Tasks, timer durations and focus-session history all survive a page refresh.
-- A v2 database containing a `todos` row upgrades in place to v3
-  (`todos`, `sessions`, `tasks`) with the todo untouched.
-- Malformed `localStorage` durations and timer snapshots fall back to defaults
-  without a crash, and malformed session rows are dropped by
-  `parseStoredSession` / `parseStoredTask`.
-- With `IDBFactory.prototype.open` throwing (private mode/quota simulation) the
-  app boots, shows a global `role="alert"` banner plus per-sheet notices, and
-  degrades to an explained empty state.
-- An in-progress timer restores from its stored `endsAt` target and is not
-  recorded until it actually completes.
+- **F023** — Music pill opens the sheet; play/pause, previous/next, three-track
+  list and volume slider; zero audio requests before Play (no autoplay); track
+  change and volume persisted through reload with playback still paused; audio
+  kept playing across sheet switches and through a complete focus session; mute
+  toggle with `aria-pressed`; track change/transport driven from the keyboard;
+  offline playback from the precache; clear error when a track is evicted from
+  the cache while offline.
+- **F031** — manifest fields (`#fd8464` theme, `#0b0f1a` background,
+  standalone, start_url), 192/512 + maskable icons and apple-touch-icon served
+  as real PNGs with no 404s, theme-color/apple meta tags, installability errors
+  empty, `/sw.js` registered in production at scope `/`, and **no**
+  registration, cache or `sw.js` request in `next dev` (Turbopack, Serwist
+  disabled by `disable: process.env.NODE_ENV === "development"`).
+- **F033** — offline reload of the shell after one visit, ambient scene
+  rendered offline, offline banner non-blocking (`pointer-events: none`), task
+  writes and session/settings reads working offline, timer running offline, all
+  `<script>` URLs of the served HTML present in the precache (no stale build),
+  ambient tracks served offline, reconnect not forcing a reload
+  (`reloadOnOnline: false`), and a byte-level `public/sw.js` change producing a
+  "new version is ready" prompt that only reloads after the user presses
+  Reload (marker survived until then; new worker active afterwards).
+- **F012** — task + focus-task selection, durations, selected track/volume and
+  the completed focus session all restored after refresh; malformed
+  `localStorage`/IndexedDB rows fall back to defaults; schema v2→v3 upgrade
+  keeps existing todos; unavailable IndexedDB shows the explained fallback; an
+  in-progress timer restores from its stored target.
 
-**Unblock when** F023 (and F033) ship a real track selector: extend step 1/2 to
-select a track, refresh, and confirm playback state is restored, then set F012
-to `passes: true`.
+### Fixed during verification
+
+`useCountdown` hydrated stored durations after mount, and the resulting
+duration-change effect used to clear the timer snapshot before the dashboard
+could restore it. With non-default durations this made F012 step 6 fail. The
+effect now re-reads a stored snapshot that matches the newly hydrated length and
+only starts fresh (and clears the snapshot) when the length really changed.
+
+## Still blocked outside this phase
+
+- **F017 — wallpaper asset.** The shell still uses the CSS/SVG ambient scene in
+  `app/components/ambient-background.tsx`; the draft's full-bleed artwork and
+  the `next/image` step are unimplemented, so F017 stays `false`. F033's
+  "wallpaper renders offline" step was verified against that scene.
+- **F027 — timer accuracy.** Partially verified (in-progress restore is covered
+  by F012 above), but background-tab/sleep accuracy and the mocked-clock test
+  are still open, so it stays `false`.
+
+## Generated artifacts
+
+`public/sw.js` and `public/swe-worker-*.js` are build outputs. They are
+tracked in this repository but must not be committed from feature work; run
+`git checkout -- public/sw.js` after a verification build if they show as
+modified.

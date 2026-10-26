@@ -14,6 +14,7 @@ import {
 import { formatClock, type TimerMode } from "@/app/lib/timer";
 import {
   clearTimerSnapshot,
+  readTimerSnapshot,
   writeTimerSnapshot,
   type TimerSnapshot,
 } from "@/app/lib/timer-snapshot";
@@ -119,6 +120,19 @@ export function useCountdown(durationMs: number, options: UseCountdownOptions): 
       }
     }
 
+    // Stored durations are swapped in after hydration, so this effect also runs
+    // on a plain reload. Pick the stored run back up when it belongs to the
+    // newly hydrated length instead of wiping it (F027/F012).
+    const stored = readTimerSnapshot();
+    if (stored?.durationMs === safeDurationMs) {
+      const restored = restoreCountdown(stored, Date.now());
+      if (restored) {
+        apply(restored);
+        return;
+      }
+    }
+
+    // A genuinely new length starts fresh and drops any stale snapshot.
     apply(createCountdown(safeDurationMs));
   }, [safeDurationMs, apply]);
 
