@@ -20,6 +20,20 @@ export const metadata: Metadata = {
   description:
     "A calm, offline-first Pomodoro timer with ambient sound, tasks and focus insights.",
   applicationName: "PomodoroFlow",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/icons/icon-192x192.png",
+    apple: [
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
   appleWebApp: {
     capable: true,
     title: "PomodoroFlow",
@@ -36,6 +50,9 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#f6efe8" },
   ],
   colorScheme: "dark light",
+  // Let the standalone app draw under the iOS safe areas; the bottom nav adds
+  // env(safe-area-inset-bottom) itself (F021/F031).
+  viewportFit: "cover",
 };
 
 // Applies the stored/system theme before first paint to avoid a flash (F024).

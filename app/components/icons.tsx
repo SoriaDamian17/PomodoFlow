@@ -139,3 +139,62 @@ export function AlertIcon(props: IconProps) {
     </Icon>
   );
 }
+
+export function PreviousIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M18.5 5.6 8.5 12l10 6.4Z" fill="currentColor" stroke="none" />
+      <path d="M5.5 5.5v13" />
+    </Icon>
+  );
+}
+
+export function NextIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5.5 5.6 15.5 12l-10 6.4Z" fill="currentColor" stroke="none" />
+      <path d="M18.5 5.5v13" />
+    </Icon>
+  );
+}
+
+export function VolumeIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 9.5h3.2L12 5.5v13L7.2 14.5H4Z" />
+      <path d="M15.5 9.2a4 4 0 0 1 0 5.6" />
+      <path d="M18 6.7a7.5 7.5 0 0 1 0 10.6" />
+    </Icon>
+  );
+}
+
+export function VolumeMuteIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 9.5h3.2L12 5.5v13L7.2 14.5H4Z" />
+      <path d="m16 9.5 5 5" />
+      <path d="m21 9.5-5 5" />
+    </Icon>
+  );
+}
+
+export function OfflineIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3.5 8.2A12.5 12.5 0 0 1 12 5.5c2.4 0 4.6.7 6.5 1.9" />
+      <path d="M6.6 11.6A8.6 8.6 0 0 1 12 10c1 0 2 .2 2.9.5" />
+      <path d="M9.6 15.2A4.6 4.6 0 0 1 12 14.5c.6 0 1.2.1 1.7.3" />
+      <path d="M12 19h.01" />
+      <path d="m4 4 16 16" />
+    </Icon>
+  );
+}
+
+export function RefreshIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M20.5 5v5h-5" />
+      <path d="M19.6 10.2a8 8 0 1 0 .9 5.1" />
+    </Icon>
+  );
+}
