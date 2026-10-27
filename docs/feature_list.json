@@ -1,0 +1,812 @@
+{
+  "project": "PomodoroFlow",
+  "version": 2,
+  "description": "Acceptance-test feature backlog for the PomodoroFlow Pomodoro productivity PWA, derived from the UI draft at docs/pomodoro-draft.png. Agents implement features incrementally and only set passes=true after verifying every step.",
+  "sourceOfTruth": "docs/pomodoro-draft.png",
+  "instructions": [
+    "Treat each feature as an independently verifiable requirement.",
+    "Implement features in phase/dependency order and keep changes focused.",
+    "Do not set passes=true unless every listed step has been verified against the implementation.",
+    "If a step cannot be verified, leave passes=false and document the blocker outside this file.",
+    "Keep the MVP frontend-only; do not add a backend or authentication unless the project scope is explicitly changed.",
+    "Match the draft's visual language (glass surfaces, coral accent, full-bleed wallpaper) through shared tokens, never per-component hex values.",
+    "Use deterministic tests for timer logic; avoid relying on long real-time waits in automated tests.",
+    "This is a Next.js 16 App Router project: keep app/page.tsx a Server Component shell and isolate 'use client' to interactive leaves (timer, panels, audio, theme toggle).",
+    "Never commit generated service worker artifacts (public/sw.js, public/swe-worker-*.js)."
+  ],
+  "designReference": {
+    "image": "docs/pomodoro-draft.png",
+    "canvas": {
+      "desktop": "1798x875 concept render (app viewport 1440x900 target)",
+      "mobile": "390x844 target, iOS safe areas"
+    },
+    "tokens": {
+      "accent": "#FD8464",
+      "accentHover": "#FF9A80",
+      "accentContrast": "#2A1410",
+      "surfaceOverlay": "#0D121B",
+      "surfaceGlass": "rgba(13, 18, 27, 0.55)",
+      "borderGlass": "rgba(255, 255, 255, 0.12)",
+      "textPrimary": "#FFFFFF",
+      "textMuted": "#BEBFD3",
+      "ringTrack": "rgba(255, 255, 255, 0.16)",
+      "backgroundTop": "#131C34"
+    },
+    "layout": {
+      "desktop": "Full-bleed ambient wallpaper; product title top-left; header icon trio top-right (theme, settings, tasks); centered Focus/Short Break/Long Break tabs; glass icon rail on the left (timer, streak, focus insights, settings, tasks); centered ring with 25:00 and 'Focus session' pill; primary Start pill; Music pill bottom-left; Tasks + Settings pills bottom-right.",
+      "mobile": "Title + header icon trio; stacked mode tabs; centered ring and Start; bottom navigation with Music / Tasks / Settings.",
+      "surfaces": "Rounded-full pills, blurred dark glass, 1px white/12 borders, soft coral glow around the active ring."
+    },
+    "assetsRequired": [
+      "public/wallpaper/pomodoro-sunset.{avif,webp,jpg} (desktop + art-directed mobile crop)",
+      "public/icons/icon-192x192.png, icon-512x512.png, icon-maskable-512x512.png, apple-touch-icon.png",
+      "public/audio/<track>.{mp3,ogg} with documented licensing",
+      "Icon set for rail/header/bottom navigation (timer, flame, brain, gear, checklist, sun, music, play/pause)"
+    ],
+    "openQuestions": [
+      "The draft shows no session-history or statistics screen: those must live in a Focus insights view or a tab inside the Tasks sheet (F010/F011/F026).",
+      "The music source and licenses are undefined; offline caching of long audio files affects PWA cache strategy (F023/F033).",
+      "Light mode is not mocked in the draft; F024/F016 must define the light token set explicitly.",
+      "The IndexedDB schema only has a 'todos' store today; sessions, settings and streaks need a version bump with an in-place upgrade (no migrations system).",
+      "The draft font is not specified; the current layout uses Geist, which is acceptable if tabular numerals are enabled for the countdown."
+    ]
+  },
+  "technicalNotes": [
+    "Design tokens belong in app/globals.css using Tailwind v4 @theme; there is no tailwind.config.*.",
+    "The service worker (app/sw.ts) is bundled by Webpack; production build only. Dev runs Turbopack with Serwist disabled.",
+    "app/lib/db.ts currently exposes only a todos store keyed by id with a by-synced index; bump the DB version and edit upgrade() in place to add sessions/settings/tasks.",
+    "app/lib/sync.ts is a stub that registers a window listener at module scope; import it only from client components until real sync exists.",
+    "deleteTodo hard-deletes with no tombstone, so deletions cannot be synced; do not build sync cleanup on top of it.",
+    "There are no tests, no CI, and no test script yet; F014 must add the runner and wire it before validating other features."
+  ],
+  "phases": [
+    {
+      "id": "P0",
+      "name": "Foundation and visual shell",
+      "featureIds": [
+        "F001",
+        "F002",
+        "F003",
+        "F004",
+        "F016",
+        "F017",
+        "F018",
+        "F019",
+        "F020",
+        "F021",
+        "F024"
+      ]
+    },
+    {
+      "id": "P1",
+      "name": "Timer reliability and feedback",
+      "featureIds": [
+        "F005",
+        "F027",
+        "F028",
+        "F029",
+        "F030"
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Tasks and panels",
+      "featureIds": [
+        "F006",
+        "F007",
+        "F008",
+        "F009",
+        "F022"
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Sessions, statistics and streaks",
+      "featureIds": [
+        "F010",
+        "F011",
+        "F025",
+        "F026",
+        "F012"
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Ambience and offline experience",
+      "featureIds": [
+        "F023",
+        "F033",
+        "F031"
+      ]
+    },
+    {
+      "id": "P5",
+      "name": "Quality, accessibility and docs",
+      "featureIds": [
+        "F013",
+        "F032",
+        "F034",
+        "F014",
+        "F015"
+      ]
+    }
+  ],
+  "features": [
+    {
+      "id": "F001",
+      "category": "app-shell",
+      "phase": "P0",
+      "priority": "must",
+      "dependsOn": [],
+      "designRef": "desktop: full shell; mobile: header, tabs, ring, Start, bottom nav",
+      "description": "The application loads into the PomodoroFlow shell shown in the draft: full-bleed ambient background, product title, mode tabs, centered timer stage and quick-access navigation, responsive from 320px to 1920px.",
+      "steps": [
+        "Load `/` at 1440x900 and verify the background, title, mode tabs, timer stage and navigation render without console errors or hydration warnings.",
+        "Load `/` at 390x844 and verify the timer, Start action and bottom navigation are fully visible without horizontal scrolling.",
+        "Verify the timer and tasks surfaces are reachable from the mobile bottom navigation and all five destinations (timer, streak, focus insights, settings, tasks) from the desktop rail.",
+        "Verify `app/page.tsx` stays a Server Component and `'use client'` is limited to interactive leaves (timer, panels, audio, theme toggle).",
+        "Hard-refresh with cache disabled and verify the application still boots."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F002",
+      "category": "timer",
+      "phase": "P0",
+      "priority": "must",
+      "dependsOn": [
+        "F001",
+        "F004"
+      ],
+      "designRef": "Start pill and 25:00 ring",
+      "description": "A user can start, pause, resume and reset a focus timer with the primary Start/Resume control in the timer stage.",
+      "steps": [
+        "Set a short focus duration for testing.",
+        "Press Start and verify the displayed remaining time decreases and the control switches to Pause.",
+        "Pause the timer and verify the remaining time stops decreasing.",
+        "Resume the timer and verify the countdown continues from the paused value.",
+        "Reset the timer and verify it returns to the configured focus duration and the control returns to Start.",
+        "Verify rapid Start/Pause clicks cannot create two concurrent countdowns."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F003",
+      "category": "timer",
+      "phase": "P0",
+      "priority": "must",
+      "dependsOn": [
+        "F022"
+      ],
+      "designRef": "settings sheet opened from the gear icon (header, rail, bottom nav)",
+      "description": "A user can configure focus, short-break and long-break durations within valid limits, with validation that rejects invalid input.",
+      "steps": [
+        "Open timer settings from the header or rail gear icon.",
+        "Set valid focus, short-break and long-break durations and save.",
+        "Verify the timer uses the selected duration for each mode after switching modes.",
+        "Enter an invalid duration such as zero, a negative value, a value above the allowed maximum, or non-numeric input.",
+        "Verify invalid values are rejected with an inline, non-color-only message and the existing valid settings remain intact.",
+        "Verify settings survive a page reload (F012)."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F004",
+      "category": "timer",
+      "phase": "P0",
+      "priority": "must",
+      "dependsOn": [],
+      "designRef": "Focus / Short Break / Long Break tabs with dot indicators and underline",
+      "description": "The timer supports focus, short-break and long-break modes with the tab control and mode indicators from the draft.",
+      "steps": [
+        "Select Focus and verify the focus duration and 'Focus session' pill label are displayed.",
+        "Switch to Short Break and verify its duration, dot indicator and label.",
+        "Switch to Long Break and verify its duration, dot indicator and label.",
+        "Verify the active mode is distinguishable without relying on color alone (underline plus dot fill plus `aria-selected`).",
+        "Verify switching modes while running follows a documented rule (either blocked with feedback or reset with confirmation) and never mixes durations."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F005",
+      "category": "timer",
+      "phase": "P1",
+      "priority": "must",
+      "dependsOn": [
+        "F002",
+        "F004",
+        "F010"
+      ],
+      "designRef": "ring reaching zero, 'Focus session' pill, Start pill reset",
+      "description": "When a session completes, the application handles completion exactly once and provides clear, multi-sensory feedback.",
+      "steps": [
+        "Set a duration short enough to complete during testing.",
+        "Start the timer and allow it to finish.",
+        "Verify completion feedback is shown (visual copy, live-region announcement, and sound per F028).",
+        "Verify the timer stops at 00:00 and never shows or stores negative time.",
+        "Verify exactly one completion event and one session record are created, including under React StrictMode double effects.",
+        "Verify a reset or abandoned timer is not recorded as completed.",
+        "Verify the next mode suggestion (break after focus) matches the draft's flow and is announced."
+      ],
+      "passes": false
+    },
+    {
+      "id": "F006",
+      "category": "tasks",
+      "phase": "P2",
+      "priority": "must",
+      "dependsOn": [
+        "F022",
+        "F012"
+      ],
+      "designRef": "Tasks pill (desktop bottom-right) / Tasks bottom-nav item",
+      "description": "A user can create a task with a title and optional description, priority and status from the Tasks sheet.",
+      "steps": [
+        "Open the Tasks sheet and create a task with a valid title and no optional fields.",
+        "Verify the task appears in the task list immediately.",
+        "Create a task with a description and priority and verify all supplied details are displayed.",
+        "Attempt to create a task with an empty or whitespace-only title and verify validation prevents it with an inline message.",
+        "Verify the sheet's form is keyboard submittable and labelled (F013)."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F007",
+      "category": "tasks",
+      "phase": "P2",
+      "priority": "must",
+      "dependsOn": [
+        "F006"
+      ],
+      "designRef": "task list rows inside the Tasks sheet",
+      "description": "A user can edit and delete existing tasks with appropriate confirmation or feedback.",
+      "steps": [
+        "Create a task.",
+        "Edit its title and priority and save.",
+        "Verify the updated values appear in the list and persist after reload.",
+        "Delete the task and verify a confirmation or undo affordance is shown for destructive actions.",
+        "Verify the task no longer appears in the list after deletion.",
+        "Verify cancelling an edit leaves the original task unchanged."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F008",
+      "category": "tasks",
+      "phase": "P2",
+      "priority": "must",
+      "dependsOn": [
+        "F006"
+      ],
+      "description": "A user can change a task status and filter tasks by status and priority.",
+      "steps": [
+        "Create tasks with different statuses and priorities.",
+        "Change one task's status from the list.",
+        "Verify the new status is shown and persisted.",
+        "Filter by status and verify only matching tasks are displayed.",
+        "Filter by priority and verify only matching tasks are displayed.",
+        "Clear filters and verify the full task list returns.",
+        "Verify the empty-filtered state explains how to clear filters."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F009",
+      "category": "timer-tasks",
+      "phase": "P2",
+      "priority": "should",
+      "dependsOn": [
+        "F005",
+        "F010",
+        "F006"
+      ],
+      "designRef": "active task context near the timer stage",
+      "description": "A user can associate a focus session with a selected task.",
+      "steps": [
+        "Create at least two tasks.",
+        "Select one task as the active task for a focus session.",
+        "Show the active task next to the timer stage and verify it is announced to assistive tech.",
+        "Start and complete a focus session.",
+        "Verify the completed session references the selected task.",
+        "Verify changing the selected task later does not rewrite previously completed sessions."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F010",
+      "category": "sessions",
+      "phase": "P3",
+      "priority": "must",
+      "dependsOn": [
+        "F005",
+        "F012"
+      ],
+      "description": "Completed focus sessions are recorded with duration, completion time and optional associated task, and are viewable in a history surface.",
+      "steps": [
+        "Complete a focus session.",
+        "Open the session history from the Focus insights view.",
+        "Verify the session appears with the correct duration and completion time in local time.",
+        "Verify the associated task is shown when one was selected.",
+        "Verify an abandoned or reset timer is not counted as a completed session.",
+        "Verify history persists across reloads.",
+        "Verify history renders correctly for an empty store."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F011",
+      "category": "statistics",
+      "phase": "P3",
+      "priority": "must",
+      "dependsOn": [
+        "F010"
+      ],
+      "designRef": "Focus insights destination on the rail (brain icon)",
+      "description": "The dashboard and Focus insights view display daily focus statistics derived from recorded sessions.",
+      "steps": [
+        "Complete multiple focus sessions.",
+        "Verify the daily completed-session count matches the history.",
+        "Verify total focus time equals the sum of qualifying completed sessions for the selected day.",
+        "Verify statistics update after another session completes without a manual reload.",
+        "Verify the empty state explains what to do, not just `0`.",
+        "Verify totals use the browser's local timezone day boundaries."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F012",
+      "category": "persistence",
+      "phase": "P3",
+      "priority": "must",
+      "dependsOn": [
+        "F003"
+      ],
+      "description": "Tasks, timer settings, streaks and session history persist across a page refresh using IndexedDB, with recovery from malformed or unavailable storage.",
+      "steps": [
+        "Create a task, change timer settings, select a track (F023) and complete a focus session.",
+        "Refresh the page and verify tasks, settings, selected track and session history are restored.",
+        "Verify the IndexedDB schema bump uses an in-place `upgrade()` with the new stores and no data loss for existing todos.",
+        "Simulate malformed stored values and verify the app boots with recoverable defaults and no crash.",
+        "Simulate IndexedDB being unavailable (private mode/quota) and verify a visible fallback state.",
+        "Verify an in-progress timer is restored from its stored target time (F027)."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F013",
+      "category": "accessibility",
+      "phase": "P5",
+      "priority": "must",
+      "dependsOn": [
+        "F018",
+        "F022",
+        "F020",
+        "F021"
+      ],
+      "description": "Core timer, task and navigation workflows can be operated with a keyboard, have accessible labels, and remain legible on the glass/dark surfaces.",
+      "steps": [
+        "Navigate the primary controls using only the keyboard and verify the tab order follows the visual order.",
+        "Verify interactive controls have visible focus indicators with sufficient contrast on glass and wallpaper backgrounds.",
+        "Verify form fields have associated labels or accessible names.",
+        "Verify icon-only buttons (rail, header, player, bottom nav) expose accessible names and tooltips.",
+        "Verify the timer ring exposes progress semantics and completion is announced via a live region.",
+        "Verify validation and completion feedback are understandable without relying on color alone.",
+        "Verify the decorative wallpaper is not announced (empty alt / aria-hidden) and images keep `alt` text where informative."
+      ],
+      "passes": false
+    },
+    {
+      "id": "F014",
+      "category": "quality",
+      "phase": "P5",
+      "priority": "must",
+      "dependsOn": [
+        "F018",
+        "F027"
+      ],
+      "description": "Core timer, task, persistence and statistics logic is covered by automated tests wired to an npm script.",
+      "steps": [
+        "Add a test runner and verify `npm test` executes the suite (there is no test setup today).",
+        "Verify timer transitions and duration-validation tests pass using a mocked clock.",
+        "Verify task validation and task-update tests pass.",
+        "Verify session aggregation and daily-statistics tests pass.",
+        "Verify persistence parsing/recovery tests pass, including malformed and unavailable storage.",
+        "Verify `npx eslint app` and `npm run build` still pass after the test setup is added."
+      ],
+      "passes": false
+    },
+    {
+      "id": "F015",
+      "category": "documentation",
+      "phase": "P5",
+      "priority": "should",
+      "dependsOn": [],
+      "description": "The repository README explains the product, setup, scripts, architecture, design system and test workflow.",
+      "steps": [
+        "Replace the create-next-app boilerplate README and verify it describes the problem and MVP functionality.",
+        "Verify setup instructions work from a clean checkout (`npm install`, `npm run dev`).",
+        "Verify development, build, start, lint and test commands are documented accurately, including the lint-before-build gotcha and generated `public/sw.js` artifacts.",
+        "Verify the App Router/Server-Client component architecture and the IndexedDB persistence approach are briefly explained.",
+        "Verify the design tokens, wallpaper/audio assets and draft reference (docs/pomodoro-draft.png) are documented."
+      ],
+      "passes": false
+    },
+    {
+      "id": "F016",
+      "category": "design-system",
+      "phase": "P0",
+      "priority": "must",
+      "dependsOn": [],
+      "designRef": "whole draft: coral accent, dark glass, pill geometry",
+      "description": "The draft's visual language is codified as Tailwind v4 theme tokens in app/globals.css and consumed by every component.",
+      "steps": [
+        "Verify `app/globals.css` declares the draft palette (accent #FD8464, text #FFFFFF, muted #BEBFD3, overlay #0D121B) through `@theme` tokens.",
+        "Verify glass surfaces (rail, pills, sheets, player) share one backdrop-blur/border/radius token set instead of ad-hoc classes.",
+        "Verify components use token utilities and no component hardcodes a hex color.",
+        "Verify accent, muted and border tokens keep WCAG AA contrast on both wallpaper and glass surfaces.",
+        "Verify the light variant of every token is defined, not only the dark one.",
+        "Verify dark mode remains the default and `prefers-color-scheme` is respected until the user overrides it."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F017",
+      "category": "visual-assets",
+      "phase": "P0",
+      "priority": "must",
+      "dependsOn": [
+        "F016"
+      ],
+      "designRef": "full-bleed sunset wallpaper with seated character and pond",
+      "description": "The ambient wallpaper fills the viewport behind the app shell, stays legible under UI text, and works offline.",
+      "steps": [
+        "Verify the wallpaper renders edge-to-edge at desktop and mobile with no tiling, letterboxing or scrollbars.",
+        "Verify the composition keeps the character and sun visible at 390px via an art-directed crop or object-position.",
+        "Verify text-bearing areas have a scrim/gradient strong enough for AA contrast at both viewports.",
+        "Verify the wallpaper is served through `next/image` with priority, explicit dimensions and responsive sizes.",
+        "Verify the asset is cached by the service worker for offline rendering (F033).",
+        "Verify a CSS-only gradient fallback renders if the image fails to load.",
+        "Verify the wallpaper does not cause layout shift or block first paint of the timer stage."
+      ],
+      "passes": false
+    },
+    {
+      "id": "F018",
+      "category": "timer",
+      "phase": "P0",
+      "priority": "must",
+      "dependsOn": [
+        "F016"
+      ],
+      "designRef": "large coral progress ring with head dot and 25:00 numerals",
+      "description": "The countdown is presented as a radial progress ring that matches the draft and exposes accessible progress semantics.",
+      "steps": [
+        "Verify the ring stroke represents the remaining fraction of the session.",
+        "Verify the arc angle matches remaining time at 25%, 50% and 90% completion.",
+        "Verify the head dot sits on the leading edge of the arc and advances smoothly.",
+        "Verify numerals are tabular and the 25:00 area does not shift layout each second.",
+        "Verify the timer is exposed as a progressbar (or equivalent) with min/max/now values and a readable label.",
+        "Verify ring motion and glow respect `prefers-reduced-motion`."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F019",
+      "category": "navigation",
+      "phase": "P0",
+      "priority": "must",
+      "dependsOn": [
+        "F004"
+      ],
+      "designRef": "centered Focus / Short Break / Long Break tabs with dots and underline",
+      "description": "Mode switching uses an accessible tab control with the dot indicators and active underline from the draft.",
+      "steps": [
+        "Verify Focus, Short Break and Long Break render with dot indicators and an active underline.",
+        "Verify the active tab is conveyed through `aria-selected`, underline and dot fill, not color alone.",
+        "Verify switching tabs updates the duration, ring and session pill label immediately.",
+        "Verify ArrowLeft/ArrowRight/Home/End move focus inside a `tablist` and Enter/Space activates.",
+        "Verify the tab control does not overflow at 320px or at 200% zoom."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F020",
+      "category": "navigation",
+      "phase": "P0",
+      "priority": "must",
+      "dependsOn": [
+        "F016"
+      ],
+      "designRef": "left vertical glass rail: timer, flame, brain, gear, tasks",
+      "description": "Desktop navigation is a left glass rail with accessible icon buttons for timer, streak, focus insights, settings and tasks.",
+      "steps": [
+        "Verify the rail renders as a vertical glass pill with the five draft destinations.",
+        "Verify each icon-only button has an accessible name and a visible tooltip on hover and focus.",
+        "Verify the active destination is visually distinct without relying on color alone.",
+        "Verify the rail stays clear of the timer stage and keeps it centered at 1024px, 1280px and 1440px.",
+        "Verify the rail is hidden below the breakpoint where the mobile bottom navigation takes over.",
+        "Verify the rail order matches the draft and the tab order is logical."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F021",
+      "category": "navigation",
+      "phase": "P0",
+      "priority": "must",
+      "dependsOn": [
+        "F016"
+      ],
+      "designRef": "mobile bottom bar: Music / Tasks / Settings",
+      "description": "Mobile navigation is the bottom bar from the draft, usable with iOS safe areas and without covering the primary action.",
+      "steps": [
+        "Verify mobile renders the bottom bar with Music, Tasks and Settings and no desktop rail.",
+        "Verify the bar clears the Start action and respects `env(safe-area-inset-bottom)`.",
+        "Verify the active item is distinguishable without color alone and is announced to assistive tech.",
+        "Verify tapping an item opens its panel without losing timer state.",
+        "Verify the bar stays reachable in landscape and at 320px width."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F022",
+      "category": "panels",
+      "phase": "P2",
+      "priority": "must",
+      "dependsOn": [
+        "F016",
+        "F021"
+      ],
+      "designRef": "Tasks and Settings pills / header icon trio",
+      "description": "Tasks and Settings open as accessible sheets (right-side on desktop, bottom sheet on mobile) instead of separate pages.",
+      "steps": [
+        "Verify Settings opens as a right-side sheet on desktop and a bottom sheet on mobile.",
+        "Verify Escape closes the sheet and focus returns to the element that opened it.",
+        "Verify focus is trapped inside the open sheet and background scroll is locked.",
+        "Verify the open sheet is labelled, has a visible close control and is announced as a dialog.",
+        "Verify a running timer keeps counting while a sheet is open and remains visible or clearly indicated.",
+        "Verify closing a sheet does not discard saved changes or reset the timer."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F023",
+      "category": "audio",
+      "phase": "P4",
+      "priority": "should",
+      "dependsOn": [
+        "F022",
+        "F033"
+      ],
+      "designRef": "Music pill bottom-left and Music item in mobile bottom bar",
+      "description": "A user can play ambient music during sessions from the Music player without it interfering with the timer.",
+      "steps": [
+        "Verify the Music pill opens a player with play/pause, previous/next, a track list and volume.",
+        "Verify audio never autoplays and starts only on an explicit Play press.",
+        "Verify selected track and volume persist across reloads (F012).",
+        "Verify playback continues while navigating between panels and while the timer runs.",
+        "Verify a mute toggle is available for focus and break sessions.",
+        "Verify tracks play offline after the first load and show a clear error when unavailable.",
+        "Verify the player is keyboard operable and exposes state with `aria-pressed`."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F024",
+      "category": "theming",
+      "phase": "P0",
+      "priority": "should",
+      "dependsOn": [
+        "F016"
+      ],
+      "designRef": "sun icon in the header icon trio",
+      "description": "A theme toggle switches between the dark draft theme and a legible light theme, with no flash of the wrong theme.",
+      "steps": [
+        "Verify the sun control toggles light/dark and the choice persists across reloads.",
+        "Verify first paint matches the stored or system theme with no visible flash.",
+        "Verify the default follows system preference and tracks OS changes until the user overrides it.",
+        "Verify accent, glass and text tokens keep AA contrast in light mode.",
+        "Verify the wallpaper treatment stays legible in light mode (scrim or alternate asset)."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F025",
+      "category": "streaks",
+      "phase": "P3",
+      "priority": "should",
+      "dependsOn": [
+        "F010"
+      ],
+      "designRef": "flame icon in the desktop rail",
+      "description": "A streak view reports consecutive focus days derived from completed sessions.",
+      "steps": [
+        "Verify the flame destination reports the current consecutive-day streak from completed focus sessions.",
+        "Verify day boundaries use the browser's local timezone rather than UTC.",
+        "Verify two sessions on the same day count as one streak day.",
+        "Verify a skipped day resets the current streak to zero while the best streak is preserved.",
+        "Verify the empty state explains what a streak is and how to start one.",
+        "Verify the streak is recomputed from session history, not a separately mutable counter."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F026",
+      "category": "statistics",
+      "phase": "P3",
+      "priority": "should",
+      "dependsOn": [
+        "F011"
+      ],
+      "designRef": "brain icon in the desktop rail",
+      "description": "The Focus insights view summarizes focus minutes per day and week from recorded sessions.",
+      "steps": [
+        "Verify the brain destination summarizes focus minutes per day for the current week.",
+        "Verify totals match the sum of completed focus sessions for the same range.",
+        "Verify the today/week range selector is reflected in labels and values.",
+        "Verify the view updates after a session completes without a reload.",
+        "Verify empty and single-session states render meaningful copy.",
+        "Verify the summary is readable with a screen reader (table or list semantics, not color-only chart)."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F027",
+      "category": "timer",
+      "phase": "P1",
+      "priority": "must",
+      "dependsOn": [
+        "F002"
+      ],
+      "description": "The countdown is timestamp-based and stays accurate across background tabs, system sleep and reloads.",
+      "steps": [
+        "Verify remaining time is derived from a target timestamp rather than interval decrements.",
+        "Verify a 10-minute session is still accurate after the tab is backgrounded for 2 minutes.",
+        "Verify system sleep/resume does not produce negative time or double completion.",
+        "Verify `document.title` reflects remaining time while running and resets when stopped.",
+        "Verify an in-progress session is restored after a reload from its stored target time.",
+        "Verify a deterministic unit test advances a mocked clock through start, pause, resume and completion."
+      ],
+      "passes": false
+    },
+    {
+      "id": "F028",
+      "category": "notifications",
+      "phase": "P1",
+      "priority": "should",
+      "dependsOn": [
+        "F005"
+      ],
+      "description": "Session completion produces a single chime and, when permitted, a single browser notification.",
+      "steps": [
+        "Verify a completion chime plays exactly once when the timer ends.",
+        "Verify the chime respects a mute toggle and never plays on pause or reset.",
+        "Verify Web Notification permission is requested only after an explicit user action.",
+        "Verify at most one notification is shown per completion, including after re-renders or reloads.",
+        "Verify completion is also announced in a live region for users who cannot hear the chime.",
+        "Verify the app degrades silently when notification permission is denied."
+      ],
+      "passes": false
+    },
+    {
+      "id": "F029",
+      "category": "keyboard",
+      "phase": "P1",
+      "priority": "should",
+      "dependsOn": [
+        "F002",
+        "F019",
+        "F022"
+      ],
+      "description": "Keyboard shortcuts accelerate timer and panel control without interfering with text entry.",
+      "steps": [
+        "Verify Space toggles start/pause when focus is not in an input, textarea or contenteditable.",
+        "Verify R resets the timer and 1/2/3 switch modes.",
+        "Verify documented keys open Tasks and Settings and Escape closes them.",
+        "Verify shortcuts do not fire while typing a task title or description.",
+        "Verify a help affordance lists the available shortcuts.",
+        "Verify shortcuts are discoverable to assistive tech and do not trap the user."
+      ],
+      "passes": false
+    },
+    {
+      "id": "F030",
+      "category": "platform",
+      "phase": "P1",
+      "priority": "nice",
+      "dependsOn": [
+        "F002"
+      ],
+      "description": "The screen stays awake during a running focus session via the Screen Wake Lock API where supported.",
+      "steps": [
+        "Verify the screen wake lock is requested while a focus session runs (Chromium).",
+        "Verify the lock is released on pause, reset, completion, tab hide and unmount.",
+        "Verify the lock is re-acquired when the tab becomes visible and the timer is still running.",
+        "Verify unsupported browsers degrade without console errors or broken UI."
+      ],
+      "passes": false
+    },
+    {
+      "id": "F031",
+      "category": "pwa",
+      "phase": "P4",
+      "priority": "must",
+      "dependsOn": [
+        "F001",
+        "F017"
+      ],
+      "description": "The app is installable as a standalone PWA with correct manifest metadata, icons and theme color.",
+      "steps": [
+        "Verify `app/manifest.ts` exposes name, short_name, description, theme_color (#FD8464), background_color, display standalone and start_url.",
+        "Verify 192x192 and 512x512 PNG icons plus a maskable icon exist in public/icons and are referenced without 404s.",
+        "Verify apple-touch-icon and theme-color meta are present for iOS installation.",
+        "Verify Lighthouse installability checks pass on a production build.",
+        "Verify the installed app launches standalone and offline after one visit.",
+        "Verify the service worker is only active in production (`npm run build && npm start`)."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F032",
+      "category": "motion",
+      "phase": "P5",
+      "priority": "should",
+      "dependsOn": [
+        "F016",
+        "F018",
+        "F022"
+      ],
+      "description": "Motion in the shell, tabs, ring and sheets is consistent, performant and respects reduced-motion preferences.",
+      "steps": [
+        "Verify tab switches, sheet open/close and navigation use one shared duration/easing token.",
+        "Verify all animations are disabled or reduced under `prefers-reduced-motion: reduce`.",
+        "Verify no animation causes layout shift on the timer stage (CLS near zero).",
+        "Verify the countdown and glow animation stay smooth without long frames.",
+        "Verify motion does not delay interaction or block the Start action."
+      ],
+      "passes": false
+    },
+    {
+      "id": "F033",
+      "category": "offline",
+      "phase": "P4",
+      "priority": "should",
+      "dependsOn": [
+        "F012",
+        "F031"
+      ],
+      "description": "The PWA works offline for the shell, data and previously loaded assets, and surfaces update/offline states.",
+      "steps": [
+        "Verify the app shell loads with the network offline after one production visit.",
+        "Verify the wallpaper renders offline and audio falls back gracefully when uncached.",
+        "Verify IndexedDB tasks, settings and sessions are readable offline and local writes succeed.",
+        "Verify an offline indicator appears without blocking the timer.",
+        "Verify a new service worker version prompts a reload instead of refreshing aggressively.",
+        "Verify stale cached HTML never serves a version that breaks the IndexedDB schema."
+      ],
+      "passes": true
+    },
+    {
+      "id": "F034",
+      "category": "responsive",
+      "phase": "P5",
+      "priority": "must",
+      "dependsOn": [
+        "F001",
+        "F017",
+        "F020",
+        "F021"
+      ],
+      "description": "The layout holds up across the draft's desktop and mobile compositions, touch targets and zoom levels.",
+      "steps": [
+        "Verify layouts at 390x844, 768x1024, 1024x768, 1280x800 and 1440x900 with no overlap or horizontal scroll.",
+        "Verify all interactive targets are at least 44x44 CSS px on touch.",
+        "Verify the timer remains the dominant element at every breakpoint.",
+        "Verify the layout is usable at 200% browser zoom and 320px width.",
+        "Verify the mode tabs and bottom navigation never clip or overlap the timer stage.",
+        "Verify mobile landscape does not hide the Start action behind the bottom bar."
+      ],
+      "passes": false
+    }
+  ]
+}

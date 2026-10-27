@@ -32,3 +32,13 @@ Correct verification order: `npx eslint app` → `npm run build`. There are no t
 - IndexedDB (`app/lib/db.ts`): DB `pomodoro-db` v1, single `todos` store keyed by `id`, index `by-synced`. Changing the schema requires bumping the version and editing `upgrade()` in place — no migrations system.
 - Sync semantics: `updateTodo` always forces `synced: false`; `deleteTodo` hard-deletes with no tombstone, so deletions cannot be synced. Keep that in mind before building real offline sync.
 - `app/lib/sync.ts` is a stub that only flips local `synced` flags, and it registers a `window` listener at module scope. Import it only from client components; there are no API routes or server endpoints yet.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
