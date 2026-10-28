@@ -477,7 +477,7 @@ function TaskForm({
           aria-invalid={Boolean(errors.title)}
           aria-describedby={errors.title ? titleErrorId : undefined}
           className={cn(
-            "mt-1.5 h-11 w-full rounded-2xl border bg-foreground/5 px-3.5 text-sm text-foreground transition-colors outline-none",
+            "mt-1.5 h-11 w-full rounded-2xl border bg-foreground/5 px-3.5 text-sm text-foreground transition-colors",
             errors.title
               ? "border-accent-text/70"
               : "border-glass-border focus-visible:border-accent-strong",
@@ -506,7 +506,7 @@ function TaskForm({
           aria-invalid={Boolean(errors.description)}
           aria-describedby={errors.description ? descriptionErrorId : undefined}
           className={cn(
-            "mt-1.5 w-full resize-y rounded-2xl border bg-foreground/5 px-3.5 py-2.5 text-sm text-foreground transition-colors outline-none",
+            "mt-1.5 w-full resize-y rounded-2xl border bg-foreground/5 px-3.5 py-2.5 text-sm text-foreground transition-colors",
             errors.description
               ? "border-accent-text/70"
               : "border-glass-border focus-visible:border-accent-strong",

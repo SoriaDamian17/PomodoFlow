@@ -1,4 +1,5 @@
 import { getDB } from "@/app/lib/db";
+import { requestPersistentStorage } from "@/app/lib/storage";
 
 /**
  * Task model for the Tasks sheet (F006–F008).
@@ -243,6 +244,9 @@ export async function createTask(input: TaskDraftInput): Promise<Task | null> {
   try {
     const db = await getDB();
     await db.add("tasks", task);
+    // A5: the first real task is a good moment to ask the browser to keep this
+    // origin out of eviction. Fire-and-forget: a denial must not fail the write.
+    void requestPersistentStorage();
     return task;
   } catch {
     return null;
