@@ -28,7 +28,6 @@ import { TasksSheet } from "@/app/components/tasks-sheet";
 import { ThemeToggle } from "@/app/components/theme-toggle";
 import { TimerRing } from "@/app/components/timer-ring";
 import { TimerStatusPill } from "@/app/components/timer-status";
-import { IconButton } from "@/app/components/icon-button";
 import {
   AlertIcon,
   ChecklistIcon,
@@ -38,9 +37,9 @@ import {
   PauseIcon,
   PlayIcon,
   ResetIcon,
-  TimerIcon,
 } from "@/app/components/icons";
 import type { ComponentType, SVGProps } from "react";
+import Image from "next/image";
 
 export function PomodoroDashboard() {
   const [mode, setMode] = useState<TimerMode>("focus");
@@ -189,16 +188,13 @@ export function PomodoroDashboard() {
     <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1500px] flex-col px-5 pt-5 pb-28 sm:px-8 sm:pt-7 lg:px-12 lg:pb-8 [@media(max-height:620px)]:pt-2 [@media(max-height:620px)]:pb-20">
       <header className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-3 [@media(max-height:620px)]:gap-y-1">
         <div className="flex items-center gap-3">
-          <span
-            aria-hidden="true"
-            className="glass grid size-9 place-items-center rounded-full text-accent-text sm:size-10"
-          >
-            <TimerIcon className="size-[18px]" />
-          </span>
           <div>
-            <h1 className="text-base font-semibold tracking-tight sm:text-lg">
-              PomodoroFlow
-            </h1>
+            <Image
+              src="/logo-app.png"
+              alt="PomodoroFlow icon"
+              width={150}
+              height={15}
+              />
             <p className="hidden text-xs text-muted sm:block [@media(max-height:620px)]:hidden">
               Breathe. Focus. Repeat.
             </p>
@@ -213,15 +209,6 @@ export function PomodoroDashboard() {
 
         <div className="glass flex items-center gap-0.5 rounded-full p-1">
           <ThemeToggle />
-          <IconButton
-            label="Open settings"
-            onClick={() => openSurface("settings")}
-          >
-            <GearIcon className="size-[18px]" />
-          </IconButton>
-          <IconButton label="Open tasks" onClick={() => openSurface("tasks")}>
-            <ChecklistIcon className="size-[18px]" />
-          </IconButton>
         </div>
       </header>
 
