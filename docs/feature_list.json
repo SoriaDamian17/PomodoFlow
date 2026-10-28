@@ -393,7 +393,7 @@
         "Verify validation and completion feedback are understandable without relying on color alone.",
         "Verify the decorative wallpaper is not announced (empty alt / aria-hidden) and images keep `alt` text where informative."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F014",
@@ -413,7 +413,7 @@
         "Verify persistence parsing/recovery tests pass, including malformed and unavailable storage.",
         "Verify `npx eslint app` and `npm run build` still pass after the test setup is added."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F015",
@@ -429,7 +429,7 @@
         "Verify the App Router/Server-Client component architecture and the IndexedDB persistence approach are briefly explained.",
         "Verify the design tokens, wallpaper/audio assets and draft reference (docs/pomodoro-draft.png) are documented."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F016",
@@ -764,7 +764,7 @@
         "Verify the countdown and glow animation stay smooth without long frames.",
         "Verify motion does not delay interaction or block the Start action."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "F033",
@@ -806,7 +806,7 @@
         "Verify the mode tabs and bottom navigation never clip or overlap the timer stage.",
         "Verify mobile landscape does not hide the Start action behind the bottom bar."
       ],
-      "passes": false
+      "passes": true
     }
   ]
 }
