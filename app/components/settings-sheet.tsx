@@ -10,6 +10,7 @@ import {
 } from "@/app/lib/settings";
 import { MODE_META, TIMER_MODES, type TimerMode } from "@/app/lib/timer";
 import { Sheet } from "@/app/components/sheet";
+import { StoragePersistenceStatus } from "@/app/components/storage-persistence-status";
 
 interface SettingsSheetProps {
   open: boolean;
@@ -134,7 +135,7 @@ function DurationForm({ durations, onClose, onSave }: DurationFormProps) {
                     }))
                   }
                   className={cn(
-                    "h-12 w-full rounded-2xl border bg-foreground/5 pr-14 pl-4 text-right text-lg font-medium tabular-nums text-foreground transition-colors outline-none",
+                    "h-12 w-full rounded-2xl border bg-foreground/5 pr-14 pl-4 text-right text-lg font-medium tabular-nums text-foreground transition-colors",
                     error
                       ? "border-accent-text/70"
                       : "border-glass-border focus-visible:border-accent-strong",
@@ -166,6 +167,8 @@ function DurationForm({ durations, onClose, onSave }: DurationFormProps) {
           Restore defaults
         </button>
       </div>
+
+      <StoragePersistenceStatus className="pt-1" />
 
       <div className="mt-auto flex flex-col gap-2 pt-2">
         <button type="submit" className="btn-primary h-12 w-full text-sm">

@@ -1,4 +1,5 @@
 import { getDB } from "@/app/lib/db";
+import { requestPersistentStorage } from "@/app/lib/storage";
 import type { Task } from "@/app/lib/tasks";
 import { isTimerMode, type TimerMode } from "@/app/lib/timer";
 
@@ -111,6 +112,10 @@ export async function recordSession(input: SessionInput): Promise<SessionRecord 
     const db = await getDB();
     const session: SessionRecord = { id: crypto.randomUUID(), ...input };
     await db.add("sessions", session);
+
+    // A5: a completed session is the second engagement signal; ask the browser
+    // to protect the database from eviction (best effort, never blocks).
+    void requestPersistentStorage();
 
     if (typeof window !== "undefined") {
       window.dispatchEvent(new Event(SESSIONS_UPDATED_EVENT));

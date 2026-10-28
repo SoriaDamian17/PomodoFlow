@@ -185,7 +185,7 @@ export function PomodoroDashboard() {
   const startLabel = isRunning ? "Pause" : status === "paused" ? "Resume" : "Start";
 
   return (
-    <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1500px] flex-col px-5 pt-5 pb-28 sm:px-8 sm:pt-7 lg:px-12 lg:pb-8 [@media(max-height:620px)]:pt-2 [@media(max-height:620px)]:pb-20">
+    <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1500px] flex-col px-5 pt-5 pb-28 sm:px-8 sm:pt-7 lg:px-12 lg:pb-8 [@media(max-height:620px)]:pt-2 [@media(max-height:620px)]:pb-24">
       <header className="relative flex flex-wrap items-center justify-between gap-x-4 gap-y-3 [@media(max-height:620px)]:gap-y-1">
         <div className="flex items-center gap-3">
           <div>
